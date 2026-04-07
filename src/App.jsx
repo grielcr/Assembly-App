@@ -4,6 +4,13 @@ import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
+import { supabase } from "./supabaseClient";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
+pdfjs.GlobalWorkerOptions.workerSrc =
+  `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const quickReferences = [
   { title: "Torque Schedule", file: "/quick-references/Torque-schedule.pdf" },
@@ -13,6 +20,39 @@ const quickReferences = [
     file: "/quick-references/Cabinet-major-components-2.0.pdf",
   },
 ];
+
+const floorplanAssets = {
+  floorplan: "/dummy_floorplan_north.svg",
+};
+
+const floorSlotLayout = {
+  "bay-33": { left: "21.2%", top: "81.5%", width: 50, height: 92 },
+  "bay-34": { left: "26%", top: "81.5%", width: 50, height: 92 },
+  "bay-35": { left: "30.5%", top: "81.5%", width: 50, height: 92 },
+  "bay-38": { left: "45.5%", top: "81.5%", width: 50, height: 92 },
+  "bay-39": { left: "50%", top: "81.5%", width: 50, height: 92 },
+  "bay-40": { left: "54.5%", top: "81.5%", width: 50, height: 92 },
+  "bay-41": { left: "59.5%", top: "81.5%", width: 50, height: 92 },
+  "bay-42": { left: "64%", top: "81.5%", width: 50, height: 92 },
+  "bay-43": { left: "68.5%", top: "81.5%", width: 50, height: 92 },
+  "bay-44": { left: "73.3%", top: "81.5%", width: 50, height: 92 },
+  "bay-45": { left: "78%", top: "81.5%", width: 50, height: 92 },
+
+  "floor-A": { left: "30%", top: "24%", width: 92, height: 50 },
+  "floor-B": { left: "30%", top: "32%", width: 92, height: 50 },
+  "floor-C": { left: "30%", top: "40%", width: 92, height: 50 },
+  "floor-D": { left: "30%", top: "48%", width: 92, height: 50 },
+  "floor-E": { left: "30%", top: "56%", width: 92, height: 50 },
+
+  "floor-F": { left: "30%", top: "64%", width: 92, height: 50 },
+  "floor-G": { left: "50%", top: "40%", width: 92, height: 50 },
+  "floor-H": { left: "61%", top: "40%", width: 92, height: 50 },
+  "floor-I": { left: "50%", top: "64%", width: 92, height: 50 },
+  "floor-J": { left: "61%", top: "64%", width: 92, height: 50 },
+
+  "floor-K": { left: "83.2%", top: "40%", width: 50, height: 92 },
+  "floor-L": { left: "83.2%", top: "60%", width: 50, height: 92 },
+};
 
 const sectionTemplate = [
   {
@@ -69,88 +109,424 @@ const fakeBuild = {
 };
 
 export default function App() {
+  const pathname = window.location.pathname.toLowerCase();
+  const isOperatorRoute = pathname.startsWith("/operator");
+  const isAssemblerRoute =
+    pathname.startsWith("/assembler") || pathname === "/" || pathname === "";
+
   const [screen, setScreen] = useState("splash");
   const [previousScreen, setPreviousScreen] = useState("home");
   const [selectedPdf, setSelectedPdf] = useState("/assmguide1.pdf");
   const [viewerTitle, setViewerTitle] = useState("My Build");
 
+  const [operatorScreen, setOperatorScreen] = useState("home");
+
   const [build, setBuild] = useState(fakeBuild);
   const [activeSectionId, setActiveSectionId] = useState(
     fakeBuild.currentSectionId
   );
-
   const [scannedUnit, setScannedUnit] = useState("");
 
-  if (screen === "splash") {
-    return <SplashScreen onDone={() => setScreen("scan")} />;
+  async function loadOrCreateBuild(unitId) {
+    try {
+      const { data, error } = await supabase
+        .from("builds")
+        .select("*")
+        .eq("build_id", unitId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error loading build:", error);
+        return;
+      }
+
+      if (data) {
+        const loadedBuild = {
+          buildId: data.build_id,
+          serialNumber: data.serial_number || unitId,
+          revision: data.revision || "06.2.5",
+          pdfUrl: "/assmguide1.pdf",
+          currentSectionId: data.current_section_id || "safety-prechecks",
+          sections:
+            Array.isArray(data.sections_json) && data.sections_json.length > 0
+              ? data.sections_json
+              : fakeBuild.sections,
+        };
+
+        setBuild(loadedBuild);
+        setActiveSectionId(loadedBuild.currentSectionId);
+        return;
+      }
+
+      const newBuild = {
+        ...fakeBuild,
+        buildId: unitId,
+        serialNumber: unitId,
+      };
+
+      const { error: insertError } = await supabase.from("builds").insert({
+        build_id: newBuild.buildId,
+        serial_number: newBuild.serialNumber,
+        revision: newBuild.revision,
+        current_section_id: newBuild.currentSectionId,
+        sections_json: newBuild.sections,
+      });
+
+      if (insertError) {
+        console.error("Error creating build:", insertError);
+        return;
+      }
+
+      setBuild(newBuild);
+      setActiveSectionId(newBuild.currentSectionId);
+    } catch (err) {
+      console.error("Unexpected build load/create error:", err);
+    }
   }
 
-  if (screen === "scan") {
+  async function saveBuildToSupabase(updatedBuild) {
+    try {
+      const { error } = await supabase
+        .from("builds")
+        .update({
+          serial_number: updatedBuild.serialNumber,
+          revision: updatedBuild.revision,
+          current_section_id: updatedBuild.currentSectionId,
+          sections_json: updatedBuild.sections,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("build_id", updatedBuild.buildId);
+
+      if (error) {
+        console.error("Error saving build:", error);
+      }
+    } catch (err) {
+      console.error("Unexpected save error:", err);
+    }
+  }
+
+  async function createSectionChangeRequest(request) {
+    try {
+      const { error } = await supabase.from("section_change_requests").insert({
+        build_id: request.buildId,
+        serial_number: request.serialNumber,
+        from_section_id: request.fromSectionId,
+        from_section_title: request.fromSectionTitle,
+        requested_section_id: request.requestedSectionId,
+        requested_section_title: request.requestedSectionTitle,
+        reason: request.reason,
+        requested_by: request.requestedBy || "Assembler",
+        status: "pending",
+      });
+
+      if (error) {
+        console.error("Error creating section change request:", error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Unexpected section change request error:", err);
+      return false;
+    }
+  }
+
+  async function fetchSectionChangeRequests(buildId = null) {
+    try {
+      let query = supabase
+        .from("section_change_requests")
+        .select("*")
+        .order("requested_at", { ascending: false });
+
+      if (buildId) {
+        query = query.eq("build_id", buildId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching section change requests:", error);
+        return [];
+      }
+
+      return data || [];
+    } catch (err) {
+      console.error("Unexpected request fetch error:", err);
+      return [];
+    }
+  }
+
+  async function updateSectionChangeRequestStatus(
+    ticketId,
+    status,
+    reviewNotes = "",
+    reviewedBy = "Operator"
+  ) {
+    try {
+      const { error } = await supabase
+        .from("section_change_requests")
+        .update({
+          status,
+          review_notes: reviewNotes || null,
+          reviewed_by: reviewedBy,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", ticketId);
+
+      if (error) {
+        console.error("Error updating request status:", error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Unexpected request update error:", err);
+      return false;
+    }
+  }
+
+  async function approveSectionChangeRequest(ticket) {
+    try {
+      const { data, error } = await supabase
+        .from("builds")
+        .select("*")
+        .eq("build_id", ticket.build_id)
+        .single();
+
+      if (error) {
+        console.error("Error loading build for approval:", error);
+        return false;
+      }
+
+      const sections = Array.isArray(data.sections_json)
+        ? data.sections_json
+        : [];
+
+      const updatedSections = sections.map((section) => {
+        if (
+          section.id === ticket.requested_section_id &&
+          section.status === "locked"
+        ) {
+          return {
+            ...section,
+            status: "available",
+          };
+        }
+        return section;
+      });
+
+      const { error: buildUpdateError } = await supabase
+        .from("builds")
+        .update({
+          sections_json: updatedSections,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("build_id", ticket.build_id);
+
+      if (buildUpdateError) {
+        console.error("Error unlocking requested section:", buildUpdateError);
+        return false;
+      }
+
+      const ok = await updateSectionChangeRequestStatus(
+        ticket.id,
+        "approved",
+        "Approved by operator."
+      );
+
+      return ok;
+    } catch (err) {
+      console.error("Unexpected approval error:", err);
+      return false;
+    }
+  }
+
+  async function fetchFloorSlots() {
+    try {
+      const { data, error } = await supabase
+        .from("floor_slots")
+        .select("*")
+        .order("slot_type", { ascending: true })
+        .order("label", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching floor slots:", error);
+        return [];
+      }
+
+      return data || [];
+    } catch (err) {
+      console.error("Unexpected floor slot fetch error:", err);
+      return [];
+    }
+  }
+
+  async function assignBuildToSlot(slotId, buildId) {
+    try {
+      const { error } = await supabase
+        .from("floor_slots")
+        .update({
+          build_id: buildId || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("slot_id", slotId);
+
+      if (error) {
+        console.error("Error assigning build to slot:", error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Unexpected slot assignment error:", err);
+      return false;
+    }
+  }
+
+  if (isOperatorRoute) {
+    if (operatorScreen === "my-build") {
+      return (
+        <FloorplanScreen
+          goBack={() => setOperatorScreen("home")}
+          fetchFloorSlots={fetchFloorSlots}
+          assignBuildToSlot={assignBuildToSlot}
+        />
+      );
+    }
+
+    if (operatorScreen === "quick-references") {
+      return (
+        <QuickReferencesScreen
+          goHome={() => setOperatorScreen("home")}
+          onOpenPdf={(title, file) => {
+            setViewerTitle(title);
+            setSelectedPdf(file);
+            setPreviousScreen("operator-quick-references");
+            setOperatorScreen("pdf-viewer");
+          }}
+        />
+      );
+    }
+
+    if (operatorScreen === "service-tickets") {
+      return (
+        <OperatorTicketsScreen
+          fetchSectionChangeRequests={fetchSectionChangeRequests}
+          updateSectionChangeRequestStatus={updateSectionChangeRequestStatus}
+          approveSectionChangeRequest={approveSectionChangeRequest}
+          goBack={() => setOperatorScreen("home")}
+        />
+      );
+    }
+
+    if (operatorScreen === "pdf-viewer") {
+      return (
+        <PdfViewerScreen
+          title={viewerTitle}
+          fileUrl={selectedPdf}
+          goBack={() => setOperatorScreen("quick-references")}
+        />
+      );
+    }
+
     return (
-      <ScanScreen
-        onScan={(unitId) => {
-          setScannedUnit(unitId);
-          setBuild((prev) => ({
-            ...prev,
-            buildId: unitId,
-          }));
-          setScreen("unit-confirmed");
-        }}
+      <OperatorHomeScreen
+        onOpenMyBuild={() => setOperatorScreen("my-build")}
+        onOpenQuickReferences={() => setOperatorScreen("quick-references")}
+        onOpenServiceTickets={() => setOperatorScreen("service-tickets")}
       />
     );
   }
 
-  if (screen === "unit-confirmed") {
-    return (
-      <UnitConfirmedScreen
-        unitId={scannedUnit}
-        onContinue={() => setScreen("home")}
-      />
-    );
-  }
+  if (isAssemblerRoute) {
+    if (screen === "splash") {
+      return <SplashScreen onDone={() => setScreen("scan")} />;
+    }
 
-  if (screen === "my-build") {
+    if (screen === "scan") {
+      return (
+        <ScanScreen
+          onScan={(unitId) => {
+            setScannedUnit(unitId);
+            loadOrCreateBuild(unitId);
+            setScreen("unit-confirmed");
+          }}
+        />
+      );
+    }
+
+    if (screen === "unit-confirmed") {
+      return (
+        <UnitConfirmedScreen
+          unitId={scannedUnit}
+          onContinue={() => setScreen("home")}
+        />
+      );
+    }
+
+    if (screen === "my-build") {
+      return (
+        <MyBuildScreen
+          build={build}
+          activeSectionId={activeSectionId}
+          setActiveSectionId={setActiveSectionId}
+          setBuild={setBuild}
+          saveBuildToSupabase={saveBuildToSupabase}
+          createSectionChangeRequest={createSectionChangeRequest}
+          goBack={() => setScreen("home")}
+        />
+      );
+    }
+
+    if (screen === "service-tickets") {
+      return (
+        <ServiceTicketsScreen
+          build={build}
+          fetchSectionChangeRequests={fetchSectionChangeRequests}
+          goBack={() => setScreen("home")}
+        />
+      );
+    }
+
+    if (screen === "pdf-viewer") {
+      return (
+        <PdfViewerScreen
+          title={viewerTitle}
+          fileUrl={selectedPdf}
+          goBack={() => setScreen(previousScreen)}
+        />
+      );
+    }
+
+    if (screen === "quick-references") {
+      return (
+        <QuickReferencesScreen
+          goHome={() => setScreen("home")}
+          onOpenPdf={(title, file) => {
+            setViewerTitle(title);
+            setSelectedPdf(file);
+            setPreviousScreen("quick-references");
+            setScreen("pdf-viewer");
+          }}
+        />
+      );
+    }
+
     return (
-      <MyBuildScreen
+      <HomeScreen
         build={build}
-        activeSectionId={activeSectionId}
-        setActiveSectionId={setActiveSectionId}
-        setBuild={setBuild}
-        goBack={() => setScreen("home")}
-      />
-    );
-  }
-
-  if (screen === "pdf-viewer") {
-    return (
-      <PdfViewerScreen
-        title={viewerTitle}
-        fileUrl={selectedPdf}
-        goBack={() => setScreen(previousScreen)}
-      />
-    );
-  }
-
-  if (screen === "quick-references") {
-    return (
-      <QuickReferencesScreen
-        goHome={() => setScreen("home")}
-        onOpenPdf={(title, file) => {
-          setViewerTitle(title);
-          setSelectedPdf(file);
-          setPreviousScreen("quick-references");
-          setScreen("pdf-viewer");
-        }}
+        onOpenMyBuild={() => setScreen("my-build")}
+        onOpenQuickReferences={() => setScreen("quick-references")}
+        onOpenServiceTickets={() => setScreen("service-tickets")}
       />
     );
   }
 
   return (
-    <HomeScreen
-      build={build}
-      onOpenMyBuild={() => setScreen("my-build")}
-      onOpenQuickReferences={() => setScreen("quick-references")}
-    />
+    <div style={{ padding: 40 }}>
+      Route not recognized. Use <strong>/assembler</strong> or{" "}
+      <strong>/operator</strong>.
+    </div>
   );
 }
 
@@ -286,7 +662,12 @@ function UnitConfirmedScreen({ unitId, onContinue }) {
   );
 }
 
-function HomeScreen({ build, onOpenMyBuild, onOpenQuickReferences }) {
+function HomeScreen({
+  build,
+  onOpenMyBuild,
+  onOpenQuickReferences,
+  onOpenServiceTickets,
+}) {
   return (
     <div style={{ height: "100vh", padding: 20, boxSizing: "border-box" }}>
       <div
@@ -328,7 +709,66 @@ function HomeScreen({ build, onOpenMyBuild, onOpenQuickReferences }) {
           Quick References
         </button>
 
-        <button style={buttonStyle}>Service Tickets</button>
+        <button style={buttonStyle} onClick={onOpenServiceTickets}>
+          Service Tickets
+        </button>
+
+        <button style={buttonStyle}>Help</button>
+      </div>
+    </div>
+  );
+}
+
+function OperatorHomeScreen({
+  onOpenMyBuild,
+  onOpenQuickReferences,
+  onOpenServiceTickets,
+}) {
+  return (
+    <div style={{ height: "100vh", padding: 20, boxSizing: "border-box" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+        }}
+      >
+        <h1 style={{ margin: 0 }}>Operator App</h1>
+        <div
+          style={{
+            padding: "10px 16px",
+            border: "1px solid #ddd",
+            borderRadius: 10,
+            background: "#fafafa",
+            fontWeight: 600,
+          }}
+        >
+          Floor Control
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "1fr 1fr",
+          gap: 20,
+          height: "calc(100vh - 120px)",
+        }}
+      >
+        <button style={buttonStyle} onClick={onOpenMyBuild}>
+          Production Floor
+        </button>
+
+        <button style={buttonStyle} onClick={onOpenQuickReferences}>
+          Quick References
+        </button>
+
+        <button style={buttonStyle} onClick={onOpenServiceTickets}>
+          Service Tickets
+        </button>
+
         <button style={buttonStyle}>Help</button>
       </div>
     </div>
@@ -340,16 +780,17 @@ function MyBuildScreen({
   activeSectionId,
   setActiveSectionId,
   setBuild,
+  saveBuildToSupabase,
+  createSectionChangeRequest,
   goBack,
 }) {
   const [showSignModal, setShowSignModal] = useState(false);
+  const [showSectionRequestModal, setShowSectionRequestModal] = useState(false);
 
   const activeSection = useMemo(
     () => build.sections.find((section) => section.id === activeSectionId),
     [build.sections, activeSectionId]
   );
-
-  const layoutPlugin = defaultLayoutPlugin();
 
   const completeSectionWithSignature = ({ signerName, signatureDataUrl }) => {
     const currentIndex = build.sections.findIndex(
@@ -393,11 +834,14 @@ function MyBuildScreen({
 
     const nextSection = updatedSections[currentIndex + 1];
 
-    setBuild({
+    const updatedBuild = {
       ...build,
       currentSectionId: nextSection ? nextSection.id : build.currentSectionId,
       sections: updatedSections,
-    });
+    };
+
+    setBuild(updatedBuild);
+    saveBuildToSupabase(updatedBuild);
 
     if (nextSection) {
       setActiveSectionId(nextSection.id);
@@ -416,6 +860,7 @@ function MyBuildScreen({
           display: "grid",
           gridTemplateColumns: "320px 1fr",
           gap: 16,
+          overflow: "hidden",
         }}
       >
         <div
@@ -426,7 +871,12 @@ function MyBuildScreen({
             display: "flex",
             flexDirection: "column",
             gap: 16,
-            overflow: "auto",
+            overflowY: "auto",
+            position: "sticky",
+            top: 16,
+            alignSelf: "start",
+            height: "calc(100vh - 32px)",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -476,16 +926,26 @@ function MyBuildScreen({
                         section.status === "completed"
                           ? "#e8f5e9"
                           : section.status === "available"
-                          ? "#fff"
+                          ? "#ffffff"
                           : "#f3f4f6",
+                      color:
+                        section.status === "locked"
+                          ? "#6b7280"
+                          : "#111827",
                       cursor: isLocked ? "not-allowed" : "pointer",
                     }}
                   >
-                    <div style={{ fontWeight: 700 }}>{section.title}</div>
-                    <div style={{ fontSize: 14, marginTop: 6 }}>
+                    <div style={{ fontWeight: 700, color: "#111827" }}>
+                      {section.title}
+                    </div>
+                    <div
+                      style={{ fontSize: 14, marginTop: 6, color: "#374151" }}
+                    >
                       Pages {section.startPage}-{section.endPage}
                     </div>
-                    <div style={{ fontSize: 14, marginTop: 6 }}>
+                    <div
+                      style={{ fontSize: 14, marginTop: 6, color: "#374151" }}
+                    >
                       Status: {section.status}
                     </div>
                   </button>
@@ -502,8 +962,13 @@ function MyBuildScreen({
             padding: 16,
             display: "flex",
             flexDirection: "column",
-            gap: 12,
-            minWidth: 0,
+            gap: 16,
+            overflowY: "auto",
+            position: "sticky",
+            top: 16,
+            alignSelf: "start",
+            height: "calc(100vh - 32px)",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -536,6 +1001,13 @@ function MyBuildScreen({
                 {activeSection?.signed ? "Signed Off" : "Tap to Sign"}
               </button>
 
+              <button
+                style={smallButtonStyle}
+                onClick={() => setShowSectionRequestModal(true)}
+              >
+                Request Out-of-Sequence Work
+              </button>
+
               <button style={smallButtonStyle}>Create Service Ticket</button>
             </div>
           </div>
@@ -559,7 +1031,8 @@ function MyBuildScreen({
                   {activeSection.endPage} in the main assembly PDF.
                 </div>
                 <div style={{ marginTop: 6 }}>
-                  Required signoff: {activeSection.requiresSignoff ? "Yes" : "No"}
+                  Required signoff:{" "}
+                  {activeSection.requiresSignoff ? "Yes" : "No"}
                 </div>
 
                 {activeSection.signed && (
@@ -588,9 +1061,13 @@ function MyBuildScreen({
               background: "#fff",
             }}
           >
-            <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
-              <Viewer fileUrl={build.pdfUrl} plugins={[layoutPlugin]} />
-            </Worker>
+            {activeSection && (
+              <SectionPdfViewer
+                fileUrl={build.pdfUrl}
+                startPage={activeSection.startPage}
+                endPage={activeSection.endPage}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -601,6 +1078,23 @@ function MyBuildScreen({
           sectionTitle={activeSection.title}
           onCancel={() => setShowSignModal(false)}
           onSave={completeSectionWithSignature}
+        />
+      )}
+
+      {showSectionRequestModal && activeSection && (
+        <SectionChangeRequestModal
+          build={build}
+          currentSection={activeSection}
+          onCancel={() => setShowSectionRequestModal(false)}
+          onSubmit={async (requestPayload) => {
+            const ok = await createSectionChangeRequest(requestPayload);
+            if (ok) {
+              alert("Request submitted.");
+              setShowSectionRequestModal(false);
+            } else {
+              alert("Could not submit request.");
+            }
+          }}
         />
       )}
     </>
@@ -777,7 +1271,229 @@ function SignatureModal({ buildId, sectionTitle, onCancel, onSave }) {
   );
 }
 
-function QuickReferencesScreen({ goHome, onOpenPdf }) {
+function SectionChangeRequestModal({
+  build,
+  currentSection,
+  onCancel,
+  onSubmit,
+}) {
+  const [requestedSectionId, setRequestedSectionId] = useState("");
+  const [reason, setReason] = useState("");
+  const [requestedBy, setRequestedBy] = useState("");
+
+  const availableTargets = build.sections.filter(
+    (section) => section.id !== currentSection.id
+  );
+
+  const requestedSection = availableTargets.find(
+    (section) => section.id === requestedSectionId
+  );
+
+  const handleSubmit = async () => {
+    if (!requestedSectionId) {
+      alert("Please choose a section.");
+      return;
+    }
+
+    if (!reason.trim()) {
+      alert("Please enter a reason.");
+      return;
+    }
+
+    await onSubmit({
+      buildId: build.buildId,
+      serialNumber: build.serialNumber,
+      fromSectionId: currentSection.id,
+      fromSectionTitle: currentSection.title,
+      requestedSectionId: requestedSection.id,
+      requestedSectionTitle: requestedSection.title,
+      reason: reason.trim(),
+      requestedBy: requestedBy.trim(),
+    });
+  };
+
+  return (
+    <div style={modalOverlayStyle}>
+      <div
+        style={{
+          ...modalCardStyle,
+          maxWidth: 1100,
+          maxHeight: "90vh",
+          display: "grid",
+          gridTemplateColumns: "360px 1fr",
+          gap: 20,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            overflowY: "auto",
+            paddingRight: 8,
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>Request Out-of-Sequence Work</h2>
+
+          <div style={{ marginBottom: 12 }}>
+            <strong>Build:</strong> {build.buildId}
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <strong>Current section:</strong> {currentSection.title}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
+              Requested section
+            </label>
+            <select
+              value={requestedSectionId}
+              onChange={(e) => setRequestedSectionId(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Select a section</option>
+              {availableTargets.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.title} (Pages {section.startPage}-{section.endPage})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
+              Requested by
+            </label>
+            <input
+              type="text"
+              value={requestedBy}
+              onChange={(e) => setRequestedBy(e.target.value)}
+              placeholder="Assembler name"
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
+              Reason
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Example: Need to retighten wall frame before continuing."
+              style={{
+                ...inputStyle,
+                minHeight: 120,
+                resize: "vertical",
+              }}
+            />
+          </div>
+
+          {requestedSection && (
+            <div
+              style={{
+                border: "1px solid #ddd",
+                borderRadius: 10,
+                padding: 12,
+                background: "#fafafa",
+                marginBottom: 16,
+              }}
+            >
+              <div>
+                <strong>Previewing:</strong> {requestedSection.title}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                Pages {requestedSection.startPage}-{requestedSection.endPage}
+              </div>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+              marginTop: 24,
+            }}
+          >
+            <button style={smallButtonStyle} onClick={onCancel}>
+              Cancel
+            </button>
+            <button style={smallButtonStyle} onClick={handleSubmit}>
+              Submit Request
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            minWidth: 0,
+            minHeight: 0,
+            border: "1px solid #ddd",
+            borderRadius: 12,
+            overflow: "hidden",
+            background: "#fff",
+          }}
+        >
+          {requestedSection ? (
+            <SectionPdfViewer
+              fileUrl={build.pdfUrl}
+              startPage={requestedSection.startPage}
+              endPage={requestedSection.endPage}
+            />
+          ) : (
+            <div
+              style={{
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#666",
+                padding: 20,
+                textAlign: "center",
+              }}
+            >
+              Select a section to preview its pages here.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ServiceTicketsScreen({ build, fetchSectionChangeRequests, goBack }) {
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadTickets() {
+    setLoading(true);
+    const data = await fetchSectionChangeRequests(build.buildId);
+    setTickets(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadTickets();
+  }, [build.buildId]);
+
   return (
     <div
       style={{
@@ -786,7 +1502,7 @@ function QuickReferencesScreen({ goHome, onOpenPdf }) {
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        gap: 20,
+        gap: 16,
       }}
     >
       <div
@@ -794,78 +1510,657 @@ function QuickReferencesScreen({ goHome, onOpenPdf }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          gap: 12,
         }}
       >
-        <h1 style={{ margin: 0 }}>Quick References</h1>
-        <button style={smallButtonStyle} onClick={goHome}>
-          Back
-        </button>
-      </div>
+        <div>
+          <h1 style={{ margin: 0 }}>Service Tickets</h1>
+          <div style={{ marginTop: 6, color: "#555" }}>
+            Unit: {build.buildId}
+          </div>
+        </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 20,
-        }}
-      >
-        {quickReferences.map((ref) => (
-          <button
-            key={ref.file}
-            style={cardButtonStyle}
-            onClick={() => onOpenPdf(ref.title, ref.file)}
-          >
-            {ref.title}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button style={smallButtonStyle} onClick={loadTickets}>
+            Refresh
           </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PdfViewerScreen({ title, fileUrl, goBack }) {
-  const layoutPlugin = defaultLayoutPlugin();
-
-  return (
-    <div
-      style={{
-        height: "100vh",
-        padding: 16,
-        boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h1 style={{ margin: 0 }}>{title}</h1>
-        <button style={smallButtonStyle} onClick={goBack}>
-          Back
-        </button>
+          <button style={smallButtonStyle} onClick={goBack}>
+            Back
+          </button>
+        </div>
       </div>
 
       <div
         style={{
           flex: 1,
           minHeight: 0,
-          border: "1px solid #444",
+          border: "1px solid #ddd",
           borderRadius: 12,
-          overflow: "hidden",
+          padding: 16,
+          overflowY: "auto",
           background: "#fff",
         }}
       >
-        <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
-          <Viewer fileUrl={fileUrl} plugins={[layoutPlugin]} />
-        </Worker>
+        {loading ? (
+          <div>Loading tickets...</div>
+        ) : tickets.length === 0 ? (
+          <div style={{ color: "#666" }}>No tickets for this build yet.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {tickets.map((ticket) => (
+              <div
+                key={ticket.id}
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: 12,
+                  padding: 14,
+                  background: "#fafafa",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "start",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700 }}>
+                      Out-of-Sequence Work Request
+                    </div>
+                    <div style={{ marginTop: 6, color: "#444" }}>
+                      From: {ticket.from_section_title}
+                    </div>
+                    <div style={{ color: "#444" }}>
+                      Requested: {ticket.requested_section_title}
+                    </div>
+                  </div>
+
+                  <StatusChip status={ticket.status} />
+                </div>
+
+                <div style={{ marginTop: 10 }}>
+                  <strong>Reason:</strong> {ticket.reason}
+                </div>
+
+                <div style={{ marginTop: 10, color: "#555", fontSize: 14 }}>
+                  Requested by: {ticket.requested_by || "Assembler"}
+                </div>
+
+                <div style={{ color: "#555", fontSize: 14 }}>
+                  Requested at: {formatDateTime(ticket.requested_at)}
+                </div>
+
+                {ticket.review_notes && (
+                  <div style={{ marginTop: 10 }}>
+                    <strong>Review notes:</strong> {ticket.review_notes}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+function OperatorTicketsScreen({
+  fetchSectionChangeRequests,
+  updateSectionChangeRequestStatus,
+  approveSectionChangeRequest,
+  goBack,
+}) {
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadTickets() {
+    setLoading(true);
+    const data = await fetchSectionChangeRequests();
+    setTickets(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  async function handleApprove(ticket) {
+    const ok = await approveSectionChangeRequest(ticket);
+    if (ok) {
+      await loadTickets();
+    } else {
+      alert("Could not approve request.");
+    }
+  }
+
+  async function handleSetStatus(ticket, status, note) {
+    const ok = await updateSectionChangeRequestStatus(ticket.id, status, note);
+    if (ok) {
+      await loadTickets();
+    } else {
+      alert("Could not update request.");
+    }
+  }
+
+  return (
+    <div
+      style={{
+        height: "100vh",
+        padding: 20,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        background: "#f5f7fb",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <div>
+          <h1 style={{ margin: 0 }}>Operator Service Tickets</h1>
+          <div style={{ marginTop: 6, color: "#555" }}>
+            Reviewing out-of-sequence work requests
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button style={smallButtonStyle} onClick={loadTickets}>
+            Refresh
+          </button>
+          <button style={smallButtonStyle} onClick={goBack}>
+            Back
+          </button>
+        </div>
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
+        {loading ? (
+          <div>Loading requests...</div>
+        ) : tickets.length === 0 ? (
+          <div style={{ color: "#666" }}>No requests found.</div>
+        ) : (
+          tickets.map((ticket) => (
+            <div
+              key={ticket.id}
+              style={{
+                background: "#fff",
+                border: "1px solid #ddd",
+                borderRadius: 14,
+                padding: 16,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>
+                    {ticket.build_id}
+                  </div>
+                  <div style={{ marginTop: 6 }}>
+                    From: {ticket.from_section_title}
+                  </div>
+                  <div>Requested: {ticket.requested_section_title}</div>
+                </div>
+
+                <StatusChip status={ticket.status} />
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <strong>Reason:</strong> {ticket.reason}
+              </div>
+
+              <div style={{ marginTop: 10, color: "#555", fontSize: 14 }}>
+                Requested by: {ticket.requested_by || "Assembler"}
+              </div>
+              <div style={{ color: "#555", fontSize: 14 }}>
+                Requested at: {formatDateTime(ticket.requested_at)}
+              </div>
+
+              {ticket.review_notes && (
+                <div style={{ marginTop: 10 }}>
+                  <strong>Review notes:</strong> {ticket.review_notes}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  marginTop: 16,
+                }}
+              >
+                <button
+                  style={smallButtonStyle}
+                  onClick={() =>
+                    handleSetStatus(
+                      ticket,
+                      "under_review",
+                      "Operator is reviewing this request."
+                    )
+                  }
+                >
+                  Mark Under Review
+                </button>
+
+                <button
+                  style={smallButtonStyle}
+                  onClick={() => handleApprove(ticket)}
+                >
+                  Approve
+                </button>
+
+                <button
+                  style={smallButtonStyle}
+                  onClick={() =>
+                    handleSetStatus(ticket, "denied", "Denied by operator.")
+                  }
+                >
+                  Deny
+                </button>
+
+                <button
+                  style={smallButtonStyle}
+                  onClick={() =>
+                    handleSetStatus(
+                      ticket,
+                      "needs_info",
+                      "More information needed from assembler."
+                    )
+                  }
+                >
+                  Needs Info
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FloorplanScreen({ goBack, fetchFloorSlots, assignBuildToSlot }) {
+  const [slots, setSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [buildIdInput, setBuildIdInput] = useState("");
+
+  async function loadSlots() {
+    const data = await fetchFloorSlots();
+    setSlots(data);
+  }
+
+  useEffect(() => {
+    loadSlots();
+  }, []);
+
+  return (
+    <div
+      style={{
+        height: "100vh",
+        padding: 20,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        background: "#f8f8f8",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <div>
+          <h1 style={{ margin: 0 }}>Production Floor</h1>
+          <div style={{ marginTop: 6, color: "#555" }}>
+            Click any map slot to assign or clear a unit
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button style={smallButtonStyle} onClick={loadSlots}>
+            Refresh
+          </button>
+          <button style={smallButtonStyle} onClick={goBack}>
+            Back
+          </button>
+        </div>
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          border: "1px solid #ddd",
+          borderRadius: 16,
+          background: "#fff",
+          padding: 16,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            background: "#ffffff",
+            overflow: "hidden",
+          }}
+        >
+          <img
+  src={floorplanAssets.floorplan}
+  alt="Floor plan"
+  style={{
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: "135%",
+    height: "135%",
+    objectFit: "contain",
+    transform: "translate(-50%, -50%) rotate(-90deg)",
+    transformOrigin: "center center",
+  }}
+/>
+
+          {slots.map((slot) => {
+            const layout = floorSlotLayout[slot.slot_id];
+            if (!layout) return null;
+
+            return (
+              <MapSlotOverlay
+                key={slot.slot_id}
+                slot={slot}
+                layout={layout}
+                onClick={(clickedSlot) => {
+                  setSelectedSlot(clickedSlot);
+                  setBuildIdInput(clickedSlot.build_id || "");
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {selectedSlot && (
+        <div style={modalOverlayStyle}>
+          <div style={modalCardStyle}>
+            <h2 style={{ marginTop: 0 }}>{selectedSlot.label}</h2>
+
+            <div style={{ marginBottom: 12 }}>
+              <strong>Slot ID:</strong> {selectedSlot.slot_id}
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <strong>Current unit:</strong> {selectedSlot.build_id || "Empty"}
+            </div>
+
+            <label
+              style={{
+                display: "block",
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
+              Unit / Build ID
+            </label>
+
+            <input
+              type="text"
+              value={buildIdInput}
+              onChange={(e) => setBuildIdInput(e.target.value)}
+              placeholder="Example: ESS-001"
+              style={inputStyle}
+            />
+
+            <div style={{ marginTop: 12, color: "#666", fontSize: 14 }}>
+              For now this is manual text entry. Later we can swap this for a
+              dropdown of active units.
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginTop: 24,
+              }}
+            >
+              <button
+                style={smallButtonStyle}
+                onClick={() => {
+                  setSelectedSlot(null);
+                  setBuildIdInput("");
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                style={smallButtonStyle}
+                onClick={async () => {
+                  const ok = await assignBuildToSlot(
+                    selectedSlot.slot_id,
+                    null
+                  );
+
+                  if (ok) {
+                    setSelectedSlot(null);
+                    setBuildIdInput("");
+                    loadSlots();
+                  } else {
+                    alert("Could not clear slot.");
+                  }
+                }}
+              >
+                Clear
+              </button>
+
+              <button
+                style={smallButtonStyle}
+                onClick={async () => {
+                  if (!buildIdInput.trim()) {
+                    alert("Please enter a unit/build ID.");
+                    return;
+                  }
+
+                  const ok = await assignBuildToSlot(
+                    selectedSlot.slot_id,
+                    buildIdInput.trim()
+                  );
+
+                  if (ok) {
+                    setSelectedSlot(null);
+                    setBuildIdInput("");
+                    loadSlots();
+                  } else {
+                    alert("Could not assign unit.");
+                  }
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MapSlotOverlay({ slot, layout, onClick }) {
+  const isFilled = !!slot.build_id;
+
+  return (
+    <button
+      onClick={() => onClick(slot)}
+      style={{
+        position: "absolute",
+        left: layout.left,
+        top: layout.top,
+        width: layout.width,
+        height: layout.height,
+        transform: "translate(-50%, -50%)",
+        borderRadius: 10,
+        border: isFilled ? "2px solid #15803d" : "2px solid #6b7280",
+        background: isFilled ? "rgba(220, 252, 231, 0.95)" : "rgba(229, 231, 235, 0.95)",
+        color: isFilled ? "#111827" : "#374151",
+        cursor: "pointer",
+        padding: 8,
+        textAlign: "left",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+        overflow: "hidden",
+      }}
+      title={`${slot.label} - ${slot.build_id || "Empty"}`}
+    >
+      <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.1 }}>
+        {slot.label}
+      </div>
+      <div
+        style={{
+          marginTop: 4,
+          fontSize: 11,
+          lineHeight: 1.1,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {slot.build_id || "Empty"}
+      </div>
+    </button>
+  );
+}
+
+function SectionPdfViewer({ fileUrl, startPage, endPage }) {
+  const [numPages, setNumPages] = useState(null);
+
+  const onLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+  };
+
+  const safeEnd = numPages ? Math.min(endPage, numPages) : endPage;
+
+  const pages = [];
+  for (let i = startPage; i <= safeEnd; i++) {
+    pages.push(i);
+  }
+
+  return (
+    <div
+      style={{
+        height: "100%",
+        overflowY: "auto",
+        padding: 16,
+        background: "#f3f4f6",
+      }}
+    >
+      <Document file={fileUrl} onLoadSuccess={onLoadSuccess}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          {pages.map((pageNumber) => (
+            <div
+              key={pageNumber}
+              style={{
+                background: "#fff",
+                padding: 8,
+                borderRadius: 8,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+              }}
+            >
+              <Page pageNumber={pageNumber} width={700} />
+            </div>
+          ))}
+        </div>
+      </Document>
+    </div>
+  );
+}
+
+function StatusChip({ status }) {
+  const labelMap = {
+    pending: "Pending",
+    under_review: "Under Review",
+    approved: "Approved",
+    denied: "Denied",
+    needs_info: "Needs Info",
+  };
+
+  const bgMap = {
+    pending: "#fff7d6",
+    under_review: "#dbeafe",
+    approved: "#dcfce7",
+    denied: "#fee2e2",
+    needs_info: "#f3e8ff",
+  };
+
+  const colorMap = {
+    pending: "#92400e",
+    under_review: "#1d4ed8",
+    approved: "#166534",
+    denied: "#b91c1c",
+    needs_info: "#7e22ce",
+  };
+
+  return (
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: 999,
+        background: bgMap[status] || "#eee",
+        color: colorMap[status] || "#333",
+        fontWeight: 700,
+        fontSize: 13,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {labelMap[status] || status}
+    </div>
+  );
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }
 
 const buttonStyle = {
