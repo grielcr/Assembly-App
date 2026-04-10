@@ -175,7 +175,7 @@ const sectionTemplate = [
   },
   {
     id: "inverter-mounting-and-torques",
-    title: "Inverter Mounting and Torques",
+    title: "Inverter Mounting & Torques",
     startPage: 54,
     endPage: 60,
     assemblerSignaturesRequired: 1,
