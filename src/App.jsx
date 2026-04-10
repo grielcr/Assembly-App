@@ -43,69 +43,424 @@ const floorSlotLayout = {
   "floor-C": { left: "30%", top: "40%", width: 92, height: 50 },
   "floor-D": { left: "30%", top: "48%", width: 92, height: 50 },
   "floor-E": { left: "30%", top: "56%", width: 92, height: 50 },
-
   "floor-F": { left: "30%", top: "64%", width: 92, height: 50 },
   "floor-G": { left: "50%", top: "40%", width: 92, height: 50 },
   "floor-H": { left: "61%", top: "40%", width: 92, height: 50 },
   "floor-I": { left: "50%", top: "64%", width: 92, height: 50 },
   "floor-J": { left: "61%", top: "64%", width: 92, height: 50 },
-
   "floor-K": { left: "83.2%", top: "40%", width: 50, height: 92 },
   "floor-L": { left: "83.2%", top: "60%", width: 50, height: 92 },
 };
 
 const sectionTemplate = [
   {
-    id: "safety-prechecks",
-    title: "Safety Prechecks",
+    id: "precaution",
+    title: "Precaution",
     startPage: 1,
-    endPage: 3,
-    requiresSignoff: true,
+    endPage: 5,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
   },
   {
-    id: "baseframe-assembly",
-    title: "Baseframe Assembly",
-    startPage: 4,
-    endPage: 9,
-    requiresSignoff: true,
+    id: "preface",
+    title: "Preface",
+    startPage: 6,
+    endPage: 14,
+    assemblerSignaturesRequired: 0,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
   },
   {
-    id: "cabinet-assembly",
-    title: "Cabinet Assembly",
-    startPage: 10,
-    endPage: 16,
-    requiresSignoff: true,
+    id: "bottom-conduits-1-of-3",
+    title: "Bottom Conduits 1/3",
+    startPage: 15,
+    endPage: 29,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "bottom-conduits-2-of-3",
+    title: "Bottom Conduits 2/3",
+    startPage: 31,
+    endPage: 32,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "stitch-plate-torque-1-of-2",
+    title: "Stitch Plate Torque 1/2",
+    startPage: 33,
+    endPage: 34,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 1,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Torque section",
+  },
+  {
+    id: "bottom-conduits-3-of-3",
+    title: "Bottom Conduits 3/3",
+    startPage: 35,
+    endPage: 39,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "stitch-plate-torque-2-of-2",
+    title: "Stitch Plate Torque 2/2",
+    startPage: 40,
+    endPage: 41,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 1,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Torque section",
+  },
+  {
+    id: "preflip-electrical-components",
+    title: "Preflip Electrical Components",
+    startPage: 42,
+    endPage: 43,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["FA-QC-CHK-001"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end",
+  },
+  {
+    id: "flip-baseframe",
+    title: "Flip Baseframe",
+    startPage: 44,
+    endPage: 45,
+    assemblerSignaturesRequired: 0,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "dlo-cables-and-electrical-misc",
+    title: "DLO Cables and Electrical Misc",
+    startPage: 46,
+    endPage: 53,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["PR-QC-PRE-001"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end",
+  },
+  {
+    id: "inverter-mounting-and-torques",
+    title: "Inverter Mounting and Torques",
+    startPage: 54,
+    endPage: 60,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 1,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Torque section",
+  },
+  {
+    id: "secure-dlo-to-inverters",
+    title: "Secure DLO to Inverters",
+    startPage: 61,
+    endPage: 66,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["TV-EL-VER-001"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end",
+  },
+  {
+    id: "inverter-room-enclosure-1-of-2",
+    title: "Inverter Room Enclosure 1/2",
+    startPage: 67,
+    endPage: 82,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "battery-rack-prep",
+    title: "Battery Rack Prep",
+    startPage: 83,
+    endPage: 91,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 1,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator signoff required",
+  },
+  {
+    id: "control-cabinet-lift",
+    title: "Control Cabinet Lift",
+    startPage: 92,
+    endPage: 93,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "inverter-room-enclosure-2-of-2",
+    title: "Inverter Room Enclosure 2/2",
+    startPage: 94,
+    endPage: 98,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: true,
+    canSkipToHere: false,
+    notes: "Assembler may skip ahead after this section",
+  },
+  {
+    id: "secure-control-cabinet",
+    title: "Secure Control Cabinet",
+    startPage: 99,
+    endPage: 99,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 1,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Torque section",
+  },
+  {
+    id: "battery-room-enclosure",
+    title: "Battery Room Enclosure",
+    startPage: 100,
+    endPage: 111,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["FA-EN-CHK-001"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end",
+  },
+  {
+    id: "secure-battery-rack",
+    title: "Secure Battery Rack",
+    startPage: 112,
+    endPage: 113,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 1,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Torque section",
+  },
+  {
+    id: "torque-ground-cable-on-ground-bus",
+    title: "Torque Ground Cable on Ground Bus",
+    startPage: 114,
+    endPage: 115,
+    assemblerSignaturesRequired: 2,
+    operatorSignaturesRequired: 2,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Four total signatures; verify exact breakdown later",
+  },
+  {
+    id: "dc-hipot",
+    title: "DC Hipot",
+    startPage: 116,
+    endPage: 116,
+    assemblerSignaturesRequired: 0,
+    operatorSignaturesRequired: 0,
+    endForms: ["DC-HIPOT"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator-only test form",
+  },
+  {
+    id: "secure-dlo-cable-to-quadruple-barrel-mechanical-lugs",
+    title: "Secure DLO Cable to Quadruple Barrel Mechanical Lugs",
+    startPage: 117,
+    endPage: 119,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "conduits-inverter-room",
+    title: "Conduits Inverter Room",
+    startPage: 126,
+    endPage: 139,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: true,
+    notes: "Assembler may skip to this section",
+  },
+  {
+    id: "conduit-battery-room",
+    title: "Conduit Battery Room",
+    startPage: 140,
+    endPage: 158,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["FA-EL-CHK-001"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end",
   },
   {
     id: "wiring",
     title: "Wiring",
-    startPage: 17,
-    endPage: 24,
-    requiresSignoff: true,
+    startPage: 159,
+    endPage: 199,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["FA-EL-CHK-002"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end",
   },
   {
-    id: "final-inspection",
-    title: "Final Inspection",
-    startPage: 25,
-    endPage: 28,
-    requiresSignoff: true,
+    id: "load-center",
+    title: "Load Center",
+    startPage: 200,
+    endPage: 212,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["AC-HIPOT"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "AC Hipot at end of section",
+  },
+  {
+    id: "device-wiring",
+    title: "Device Wiring",
+    startPage: 213,
+    endPage: 217,
+    assemblerSignaturesRequired: 0,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "facp-section",
+    title: "FACP Section",
+    startPage: 218,
+    endPage: 244,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["FA-EL-CHK-003"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end",
+  },
+  {
+    id: "battery-rack-electrical-wiring",
+    title: "Battery Rack Electrical Wiring",
+    startPage: 245,
+    endPage: 273,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
+  },
+  {
+    id: "ia-assembly-for-inverter-assembly",
+    title: "IA Assembly for Inverter Assembly",
+    startPage: 274,
+    endPage: 287,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["SH-QC-CHK-001"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end; rename later if needed",
+  },
+  {
+    id: "control-cabinet-miscellaneous-wiring",
+    title: "Control Cabinet Miscellaneous Wiring",
+    startPage: 288,
+    endPage: 309,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: ["FA-EL-WIR-001"],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "Operator inspection required at end",
+  },
+  {
+    id: "final-assembly",
+    title: "Final Assembly",
+    startPage: 310,
+    endPage: 320,
+    assemblerSignaturesRequired: 1,
+    operatorSignaturesRequired: 0,
+    endForms: [],
+    canSkipFromHere: false,
+    canSkipToHere: false,
+    notes: "",
   },
 ];
+
+function makeRuntimeSections() {
+  return sectionTemplate.map((section, index) => ({
+    ...section,
+    status: index === 0 ? "available" : "locked",
+    assemblerSignaturesCompleted: 0,
+    operatorSignaturesCompleted: 0,
+    completedForms: [],
+    signed: false,
+    signedBy: "",
+    signedAt: "",
+    signatureDataUrl: "",
+    outOfSequenceApproved: false,
+  }));
+}
 
 const fakeBuild = {
   buildId: "ESS-001",
   serialNumber: "SN-001",
   revision: "06.2.5",
   pdfUrl: "/assmguide1.pdf",
-  currentSectionId: "safety-prechecks",
-  sections: sectionTemplate.map((section, index) => ({
-    ...section,
-    status: index === 0 ? "available" : "locked",
-    signed: false,
-    signedBy: "",
-    signedAt: "",
-    signatureDataUrl: "",
-  })),
+  currentSectionId: sectionTemplate[0].id,
+  sections: makeRuntimeSections(),
 };
 
 export default function App() {
@@ -127,7 +482,9 @@ export default function App() {
   );
   const [scannedUnit, setScannedUnit] = useState("");
 
-  async function loadOrCreateBuild(unitId) {
+    async function loadOrCreateBuild(unitId, options = {}) {
+    const { preserveActiveSection = false } = options;
+
     try {
       const { data, error } = await supabase
         .from("builds")
@@ -146,15 +503,23 @@ export default function App() {
           serialNumber: data.serial_number || unitId,
           revision: data.revision || "06.2.5",
           pdfUrl: "/assmguide1.pdf",
-          currentSectionId: data.current_section_id || "safety-prechecks",
+          currentSectionId: data.current_section_id || sectionTemplate[0].id,
           sections:
             Array.isArray(data.sections_json) && data.sections_json.length > 0
               ? data.sections_json
-              : fakeBuild.sections,
+              : makeRuntimeSections(),
         };
 
         setBuild(loadedBuild);
-        setActiveSectionId(loadedBuild.currentSectionId);
+        setActiveSectionId((prev) => {
+          if (
+            preserveActiveSection &&
+            loadedBuild.sections.some((section) => section.id === prev)
+          ) {
+            return prev;
+          }
+          return loadedBuild.currentSectionId;
+        });
         return;
       }
 
@@ -162,6 +527,7 @@ export default function App() {
         ...fakeBuild,
         buildId: unitId,
         serialNumber: unitId,
+        sections: makeRuntimeSections(),
       };
 
       const { error: insertError } = await supabase.from("builds").insert({
@@ -298,22 +664,18 @@ export default function App() {
         return false;
       }
 
-      const sections = Array.isArray(data.sections_json)
-        ? data.sections_json
-        : [];
+      const sections = Array.isArray(data.sections_json) ? data.sections_json : [];
 
       const updatedSections = sections.map((section) => {
-        if (
-          section.id === ticket.requested_section_id &&
-          section.status === "locked"
-        ) {
-          return {
-            ...section,
-            status: "available",
-          };
-        }
-        return section;
-      });
+  if (section.id === ticket.requested_section_id) {
+    return {
+      ...section,
+      status: section.status === "completed" ? "completed" : "available",
+      outOfSequenceApproved: true,
+    };
+  }
+  return section;
+});
 
       const { error: buildUpdateError } = await supabase
         .from("builds")
@@ -382,6 +744,50 @@ export default function App() {
       return false;
     }
   }
+
+  useEffect(() => {
+    if (!isAssemblerRoute) return;
+    if (!build?.buildId) return;
+    if (screen !== "my-build" && screen !== "service-tickets") return;
+
+    const channel = supabase
+      .channel(`assembler-live-${build.buildId}-${screen}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "section_change_requests",
+          filter: `build_id=eq.${build.buildId}`,
+        },
+        async () => {
+          await loadOrCreateBuild(build.buildId, {
+            preserveActiveSection: true,
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "builds",
+          filter: `build_id=eq.${build.buildId}`,
+        },
+        async () => {
+          await loadOrCreateBuild(build.buildId, {
+            preserveActiveSection: true,
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log("Assembler realtime status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAssemblerRoute, build?.buildId, screen]);
 
   if (isOperatorRoute) {
     if (operatorScreen === "my-build") {
@@ -616,8 +1022,8 @@ function ScanScreen({ onScan }) {
           QR Scanner Area
         </div>
 
-        <button style={bigButtonStyle} onClick={() => onScan("ESS-001")}>
-          Simulate Scan ESS-001
+        <button style={bigButtonStyle} onClick={() => onScan("ESS-003")}>
+          Simulate Scan ESS-003
         </button>
       </div>
     </div>
@@ -800,44 +1206,64 @@ function MyBuildScreen({
     if (currentIndex === -1) return;
 
     const currentSection = build.sections[currentIndex];
-
-    if (
-      currentSection.status === "locked" ||
-      currentSection.status === "completed"
-    ) {
-      return;
-    }
+    if (currentSection.status === "locked" && !currentSection.outOfSequenceApproved)
+  return;
 
     const signedAt = new Date().toLocaleString();
 
     const updatedSections = build.sections.map((section, index) => {
-      if (index === currentIndex) {
-        return {
-          ...section,
-          signed: true,
-          signedBy: signerName,
-          signedAt,
-          signatureDataUrl,
-          status: "completed",
-        };
-      }
+      if (index !== currentIndex) return section;
 
-      if (index === currentIndex + 1 && section.status === "locked") {
+      const nextAssemblerCount =
+        (section.assemblerSignaturesCompleted || 0) + 1;
+
+      const assemblerDone =
+        nextAssemblerCount >= (section.assemblerSignaturesRequired || 0);
+
+      const operatorDone =
+        (section.operatorSignaturesCompleted || 0) >=
+        (section.operatorSignaturesRequired || 0);
+
+      const formsDone =
+        (section.endForms || []).length === 0 ||
+        (section.completedForms || []).length >= (section.endForms || []).length;
+
+      const isComplete = assemblerDone && operatorDone && formsDone;
+
+      return {
+        ...section,
+        assemblerSignaturesCompleted: nextAssemblerCount,
+        signed: true,
+        signedBy: signerName,
+        signedAt,
+        signatureDataUrl,
+        status: isComplete ? "completed" : "available",
+      };
+    });
+
+    const currentUpdatedSection = updatedSections[currentIndex];
+    const isNowComplete = currentUpdatedSection.status === "completed";
+
+    const finalSections = updatedSections.map((section, index) => {
+      if (
+        isNowComplete &&
+        index === currentIndex + 1 &&
+        section.status === "locked"
+      ) {
         return {
           ...section,
           status: "available",
         };
       }
-
       return section;
     });
 
-    const nextSection = updatedSections[currentIndex + 1];
+    const nextSection = isNowComplete ? finalSections[currentIndex + 1] : null;
 
     const updatedBuild = {
       ...build,
       currentSectionId: nextSection ? nextSection.id : build.currentSectionId,
-      sections: updatedSections,
+      sections: finalSections,
     };
 
     setBuild(updatedBuild);
@@ -906,7 +1332,8 @@ function MyBuildScreen({
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {build.sections.map((section) => {
                 const isActive = section.id === activeSectionId;
-                const isLocked = section.status === "locked";
+                const isLocked =
+  section.status === "locked" && !section.outOfSequenceApproved;
 
                 return (
                   <button
@@ -919,9 +1346,7 @@ function MyBuildScreen({
                     style={{
                       ...sectionButtonStyle,
                       opacity: isLocked ? 0.55 : 1,
-                      border: isActive
-                        ? "2px solid #2563eb"
-                        : "1px solid #555",
+                      border: isActive ? "2px solid #2563eb" : "1px solid #555",
                       backgroundColor:
                         section.status === "completed"
                           ? "#e8f5e9"
@@ -947,6 +1372,25 @@ function MyBuildScreen({
                       style={{ fontSize: 14, marginTop: 6, color: "#374151" }}
                     >
                       Status: {section.status}
+                    </div>
+                    <div
+                      style={{ fontSize: 14, marginTop: 6, color: "#374151" }}
+                    >
+                      Assembler: {section.assemblerSignaturesCompleted || 0}/
+                      {section.assemblerSignaturesRequired || 0}
+                    </div>
+                    <div
+                      style={{ fontSize: 14, marginTop: 6, color: "#374151" }}
+                    >
+                      Operator: {section.operatorSignaturesCompleted || 0}/
+                      {section.operatorSignaturesRequired || 0}
+                    </div>
+                    <div
+                      style={{ fontSize: 14, marginTop: 6, color: "#374151" }}
+                    >
+                      Forms:{" "}
+                      {(section.completedForms || []).length}/
+                      {(section.endForms || []).length}
                     </div>
                   </button>
                 );
@@ -995,10 +1439,15 @@ function MyBuildScreen({
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 style={smallButtonStyle}
-                disabled={!activeSection || activeSection.status !== "available"}
+                disabled={
+  !activeSection ||
+  (activeSection.status !== "available" && !activeSection.outOfSequenceApproved)
+}
                 onClick={() => setShowSignModal(true)}
               >
-                {activeSection?.signed ? "Signed Off" : "Tap to Sign"}
+                {activeSection
+                  ? `Assembler Sign (${activeSection.assemblerSignaturesCompleted || 0}/${activeSection.assemblerSignaturesRequired || 0})`
+                  : "Tap to Sign"}
               </button>
 
               <button
@@ -1031,17 +1480,38 @@ function MyBuildScreen({
                   {activeSection.endPage} in the main assembly PDF.
                 </div>
                 <div style={{ marginTop: 6 }}>
-                  Required signoff:{" "}
-                  {activeSection.requiresSignoff ? "Yes" : "No"}
+                  Assembler signatures required:{" "}
+                  {activeSection.assemblerSignaturesRequired || 0}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  Operator signatures required:{" "}
+                  {activeSection.operatorSignaturesRequired || 0}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  End forms:{" "}
+                  {(activeSection.endForms || []).length > 0
+                    ? activeSection.endForms.join(", ")
+                    : "None"}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  Notes: {activeSection.notes || "None"}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  Can skip from here: {activeSection.canSkipFromHere ? "Yes" : "No"}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  Can skip to here: {activeSection.canSkipToHere ? "Yes" : "No"}
                 </div>
 
                 {activeSection.signed && (
                   <div style={{ marginTop: 10 }}>
                     <div>
-                      <strong>Signed by:</strong> {activeSection.signedBy}
+                      <strong>Last assembler signature by:</strong>{" "}
+                      {activeSection.signedBy}
                     </div>
                     <div>
-                      <strong>Signed at:</strong> {activeSection.signedAt}
+                      <strong>Last assembler signature at:</strong>{" "}
+                      {activeSection.signedAt}
                     </div>
                   </div>
                 )}
@@ -1494,6 +1964,32 @@ function ServiceTicketsScreen({ build, fetchSectionChangeRequests, goBack }) {
     loadTickets();
   }, [build.buildId]);
 
+  useEffect(() => {
+    if (!build?.buildId) return;
+
+    const channel = supabase
+      .channel(`assembler-tickets-${build.buildId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "section_change_requests",
+          filter: `build_id=eq.${build.buildId}`,
+        },
+        async () => {
+          await loadTickets();
+        }
+      )
+      .subscribe((status) => {
+        console.log("Assembler tickets realtime status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [build?.buildId]);
+
   return (
     <div
       style={{
@@ -1625,6 +2121,29 @@ function OperatorTicketsScreen({
 
   useEffect(() => {
     loadTickets();
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("operator-tickets-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "section_change_requests",
+        },
+        async () => {
+          await loadTickets();
+        }
+      )
+      .subscribe((status) => {
+        console.log("Operator tickets realtime status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function handleApprove(ticket) {
@@ -1877,19 +2396,19 @@ function FloorplanScreen({ goBack, fetchFloorSlots, assignBuildToSlot }) {
           }}
         >
           <img
-  src={floorplanAssets.floorplan}
-  alt="Floor plan"
-  style={{
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    width: "135%",
-    height: "135%",
-    objectFit: "contain",
-    transform: "translate(-50%, -50%) rotate(-90deg)",
-    transformOrigin: "center center",
-  }}
-/>
+            src={floorplanAssets.floorplan}
+            alt="Floor plan"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              width: "135%",
+              height: "135%",
+              objectFit: "contain",
+              transform: "translate(-50%, -50%) rotate(-90deg)",
+              transformOrigin: "center center",
+            }}
+          />
 
           {slots.map((slot) => {
             const layout = floorSlotLayout[slot.slot_id];
@@ -1967,10 +2486,7 @@ function FloorplanScreen({ goBack, fetchFloorSlots, assignBuildToSlot }) {
               <button
                 style={smallButtonStyle}
                 onClick={async () => {
-                  const ok = await assignBuildToSlot(
-                    selectedSlot.slot_id,
-                    null
-                  );
+                  const ok = await assignBuildToSlot(selectedSlot.slot_id, null);
 
                   if (ok) {
                     setSelectedSlot(null);
@@ -2031,7 +2547,9 @@ function MapSlotOverlay({ slot, layout, onClick }) {
         transform: "translate(-50%, -50%)",
         borderRadius: 10,
         border: isFilled ? "2px solid #15803d" : "2px solid #6b7280",
-        background: isFilled ? "rgba(220, 252, 231, 0.95)" : "rgba(229, 231, 235, 0.95)",
+        background: isFilled
+          ? "rgba(220, 252, 231, 0.95)"
+          : "rgba(229, 231, 235, 0.95)",
         color: isFilled ? "#111827" : "#374151",
         cursor: "pointer",
         padding: 8,
@@ -2161,6 +2679,97 @@ function formatDateTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
+}
+
+function QuickReferencesScreen({ goHome, onOpenPdf }) {
+  return (
+    <div
+      style={{
+        height: "100vh",
+        padding: 20,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h1 style={{ margin: 0 }}>Quick References</h1>
+        <button style={smallButtonStyle} onClick={goHome}>
+          Back
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 20,
+        }}
+      >
+        {quickReferences.map((ref) => (
+          <button
+            key={ref.file}
+            style={cardButtonStyle}
+            onClick={() => onOpenPdf(ref.title, ref.file)}
+          >
+            {ref.title}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PdfViewerScreen({ title, fileUrl, goBack }) {
+  const layoutPlugin = defaultLayoutPlugin();
+
+  return (
+    <div
+      style={{
+        height: "100vh",
+        padding: 16,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h1 style={{ margin: 0 }}>{title}</h1>
+        <button style={smallButtonStyle} onClick={goBack}>
+          Back
+        </button>
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          border: "1px solid #444",
+          borderRadius: 12,
+          overflow: "hidden",
+          background: "#fff",
+        }}
+      >
+        <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
+          <Viewer fileUrl={fileUrl} plugins={[layoutPlugin]} />
+        </Worker>
+      </div>
+    </div>
+  );
 }
 
 const buttonStyle = {
