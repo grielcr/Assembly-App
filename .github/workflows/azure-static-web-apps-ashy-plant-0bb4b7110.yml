@@ -1,5 +1,7 @@
 name: Azure Static Web Apps CI/CD
-
+env:
+  VITE_SUPABASE_URL: https://hdpicjuqjucwbobemvvg.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_FBkBekmxUHkCT60oiEyR-g_i2pN0fU-
 on:
   push:
     branches:
